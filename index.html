@@ -2,13 +2,13 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>اتصال به Supabase</title>
+  <title>تست اتصال به Supabase</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body style="font-family: tahoma; direction: rtl; padding: 20px;">
 
-  <h2>تست اتصال به Supabase</h2>
+  <h2>تست اتصال به Supabase (نسخه سفارشی)</h2>
 
   <p id="status">در حال اتصال...</p>
 
@@ -19,12 +19,17 @@
     const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
     async function testConnection() {
-      let { data, error } = await supabaseClient.from("users").select("*").limit(1);
+      let { data, error } = await supabaseClient
+        .from("IRIusers")    // جدول با نام سفارشی
+        .select("id")
+        .limit(1);
 
       if (error) {
-        document.getElementById("status").innerHTML = "❌ خطا در اتصال: " + error.message;
+        document.getElementById("status").innerHTML = "❌ خطا: " + error.message;
+        console.log(error);
       } else {
-        document.getElementById("status").innerHTML = "✅ اتصال برقرار شد!";
+        document.getElementById("status").innerHTML = "✅ اتصال برقرار شد! اطلاعات جدول پیدا شد.";
+        console.log(data);
       }
     }
 
