@@ -5,49 +5,22 @@
   <title>ورود / ثبت نام</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { 
-      font-family: tahoma;
-      direction: rtl;
-      padding: 40px;
-      background: #f0f0f0;
-    }
-    .box {
-      max-width: 350px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #ccc;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+    body { font-family: tahoma; direction: rtl; padding: 40px; background: #f0f0f0; }
+    .box { max-width: 350px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    input { width: 100%; padding: 10px; margin: 8px 0; border-radius: 5px; border: 1px solid #ccc; }
+    button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
     button:hover { background: #005fcc; }
     #msg { color: red; margin-top: 15px; }
   </style>
 </head>
 
 <body>
-
 <div class="box">
   <h3>ورود / ثبت نام</h3>
 
-  <input id="username" type="text" placeholder="نام کاربری (اختیاری)">
+  <input id="name" type="text" placeholder="نام کاربری (الزامی)">
   <input id="email" type="email" placeholder="ایمیل (اختیاری)">
-  <input id="password" type="password" placeholder="رمز عبور">
+  <input id="password" type="password" placeholder="رمز عبور (الزامی)">
 
   <button onclick="registerUser()">ثبت نام</button>
   <button onclick="loginUser()" style="margin-top:10px; background:#28a745;">ورود</button>
@@ -62,18 +35,27 @@
   const db = supabase.createClient(supabaseUrl, supabaseKey);
 
   async function registerUser() {
-    let username = document.getElementById("username").value || null;
-    let email = document.getElementById("email").value || null;
-    let password = document.getElementById("password").value;
+    let name = document.getElementById("name").value.trim();
+    let email = document.getElementById("email").value.trim() || null;
+    let password = document.getElementById("password").value.trim();
 
-    if (!password) {
-      document.getElementById("msg").innerText = "رمز عبور الزامی است";
+    if (!name || !password) {
+      document.getElementById("msg").innerText = "نام کاربری و رمز عبور الزامی است";
       return;
     }
 
     try {
-      const { data, error } = await db.from("IRIusers").insert([{ username, email, password }]);
+      // بررسی عدم تکراری بودن Name
+      let { data: existing, error: checkError } = await db.from("IRIusers").select("*").eq("Name", name);
+      if (checkError) throw checkError;
+      if (existing.length > 0) {
+        document.getElementById("msg").innerText = "نام کاربری قبلاً استفاده شده است";
+        return;
+      }
+
+      const { data, error } = await db.from("IRIusers").insert([{ Name: name, email, password }]);
       if (error) throw error;
+
       document.getElementById("msg").style.color = "green";
       document.getElementById("msg").innerText = "ثبت نام موفق!";
     } catch (err) {
@@ -84,28 +66,22 @@
   }
 
   async function loginUser() {
-    let username = document.getElementById("username").value || null;
-    let password = document.getElementById("password").value;
+    let name = document.getElementById("name").value.trim();
+    let password = document.getElementById("password").value.trim();
 
-    if (!password) {
-      document.getElementById("msg").style.color = "red";
-      document.getElementById("msg").innerText = "رمز عبور الزامی است";
+    if (!name || !password) {
+      document.getElementById("msg").innerText = "نام کاربری و رمز عبور الزامی است";
       return;
     }
 
     try {
-      const { data, error } = await db
-        .from("IRIusers")
-        .select("*")
-        .match({ username, password })
-        .limit(1);
+      const { data, error } = await db.from("IRIusers").select("*").eq("Name", name).eq("password", password).limit(1);
 
       if (error) throw error;
 
       if (data && data.length > 0) {
         document.getElementById("msg").style.color = "green";
         document.getElementById("msg").innerText = "ورود موفق!";
-        // اینجا می‌توانیم بعداً انتقال به پنل مدیریت را اضافه کنیم
       } else {
         document.getElementById("msg").style.color = "red";
         document.getElementById("msg").innerText = "نام کاربری یا رمز عبور اشتباه است";
