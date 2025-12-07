@@ -4,13 +4,12 @@
   <meta charset="UTF-8">
   <title>ورود / ثبت نام</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
     body { 
       font-family: tahoma;
       direction: rtl;
       padding: 40px;
-      background: #f8f8f8;
+      background: #f0f0f0;
     }
     .box {
       max-width: 350px;
@@ -37,6 +36,7 @@
       cursor: pointer;
     }
     button:hover { background: #005fcc; }
+    #msg { color: red; margin-top: 15px; }
   </style>
 </head>
 
@@ -52,9 +52,8 @@
   <button onclick="registerUser()">ثبت نام</button>
   <button onclick="loginUser()" style="margin-top:10px; background:#28a745;">ورود</button>
 
-  <p id="msg" style="color:red; margin-top:15px;"></p>
+  <p id="msg"></p>
 </div>
-
 
 <script>
   const supabaseUrl = "https://kvetxiekvsohmsoubclo.supabase.co";
@@ -63,8 +62,8 @@
   const db = supabase.createClient(supabaseUrl, supabaseKey);
 
   async function registerUser() {
-    let username = document.getElementById("username").value;
-    let email = document.getElementById("email").value;
+    let username = document.getElementById("username").value || null;
+    let email = document.getElementById("email").value || null;
     let password = document.getElementById("password").value;
 
     if (!password) {
@@ -72,38 +71,49 @@
       return;
     }
 
-    const { data, error } = await db.from("IRIusers").insert([
-      {
-        username: username || null,
-        email: email || null,
-        password: password
-      }
-    ]);
-
-    if (error) {
-      document.getElementById("msg").innerText = "خطا: " + error.message;
-    } else {
+    try {
+      const { data, error } = await db.from("IRIusers").insert([{ username, email, password }]);
+      if (error) throw error;
+      document.getElementById("msg").style.color = "green";
       document.getElementById("msg").innerText = "ثبت نام موفق!";
+    } catch (err) {
+      document.getElementById("msg").style.color = "red";
+      document.getElementById("msg").innerText = "خطا در ثبت نام: " + err.message;
+      console.error(err);
     }
   }
 
-
   async function loginUser() {
-    let username = document.getElementById("username").value;
+    let username = document.getElementById("username").value || null;
     let password = document.getElementById("password").value;
 
-    const { data, error } = await db
-      .from("IRIusers")
-      .select("*")
-      .eq("username", username)
-      .eq("password", password)
-      .limit(1);
+    if (!password) {
+      document.getElementById("msg").style.color = "red";
+      document.getElementById("msg").innerText = "رمز عبور الزامی است";
+      return;
+    }
 
-    if (data && data.length > 0) {
-      document.getElementById("msg").innerText = "ورود موفق!";
-      // بعداً انتقال به پنل مدیریت را می‌سازیم
-    } else {
-      document.getElementById("msg").innerText = "نام کاربری یا رمز اشتباه است";
+    try {
+      const { data, error } = await db
+        .from("IRIusers")
+        .select("*")
+        .match({ username, password })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        document.getElementById("msg").style.color = "green";
+        document.getElementById("msg").innerText = "ورود موفق!";
+        // اینجا می‌توانیم بعداً انتقال به پنل مدیریت را اضافه کنیم
+      } else {
+        document.getElementById("msg").style.color = "red";
+        document.getElementById("msg").innerText = "نام کاربری یا رمز عبور اشتباه است";
+      }
+    } catch (err) {
+      document.getElementById("msg").style.color = "red";
+      document.getElementById("msg").innerText = "خطا در ورود: " + err.message;
+      console.error(err);
     }
   }
 </script>
