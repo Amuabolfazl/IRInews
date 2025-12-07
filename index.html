@@ -32,13 +32,14 @@
 <div id="addLiveForm">
   <input type="text" id="liveTitleInput" placeholder="عنوان پخش زنده">
   <input type="text" id="liveUrlInput" placeholder="لینک پخش زنده (telewebion یا khamenei)">
+  <input type="datetime-local" id="liveEndTimeInput" placeholder="زمان پایان">
   <button onclick="addLiveStream()">افزودن پخش زنده</button>
 </div>
 
 <script>
   // اتصال به Supabase
   const supabaseUrl = "https://kvetxiekvsohmsoubclo.supabase.co";
-  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXR4aWVrdnNvaG1zb3ViY2xvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTc3MzUsImV4cCI6MjA4MDY5MzczNX0.aaKsNfP3jIgsZSlEivVAynIVEuQCceerfmkhzkthfoc";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXR4aWVzdm9pcyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzY1MTE3NzM1LCJleHAiOjIwODA2OTM3MzV9.aaKsNfP3jIgsZSlEivVAynIVEuQCceerfmkhzkthfoc";
   const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
   // بارگذاری آخرین پخش زنده
@@ -82,15 +83,16 @@
   async function addLiveStream() {
     const title = document.getElementById("liveTitleInput").value;
     const url = document.getElementById("liveUrlInput").value;
+    const end_time = document.getElementById("liveEndTimeInput").value;
 
-    if(!title || !url){
-      alert("عنوان و لینک الزامی است");
+    if(!title || !url || !end_time){
+      alert("عنوان، لینک و زمان پایان الزامی است");
       return;
     }
 
     const { data, error } = await supabaseClient
       .from("IRIlive_stream")
-      .insert([{ title, url, active:true }]);
+      .insert([{ title, url, active:true, end_time }]);
 
     if(error){
       console.log(error);
@@ -99,6 +101,7 @@
       alert("پخش زنده اضافه شد!");
       document.getElementById("liveTitleInput").value = "";
       document.getElementById("liveUrlInput").value = "";
+      document.getElementById("liveEndTimeInput").value = "";
       loadLiveStream();
     }
   }
@@ -121,9 +124,28 @@
     loadLiveStream();
   }
 
+  // بررسی خودکار پخش‌های پایان یافته هر ۳۰ ثانیه
+  async function checkLiveEnd() {
+    const { data: lives } = await supabaseClient
+      .from("IRIlive_stream")
+      .select("*")
+      .lt("end_time", new Date())
+      .eq("active", true);
+
+    if(lives && lives.length > 0){
+      for(const live of lives){
+        await archiveLiveStream(live.id);
+      }
+    }
+  }
+
+  setInterval(checkLiveEnd, 30000); // هر ۳۰ ثانیه اجرا شود
+
   // بارگذاری اولیه
   loadLiveStream();
 </script>
 
 </body>
 </html>
+
+  
