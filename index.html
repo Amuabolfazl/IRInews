@@ -7,17 +7,20 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   body { font-family: Tahoma, sans-serif; direction: rtl; margin:0; padding:20px; background:#f5f5f5;}
-  #liveStreamBar { background:#dc3545; color:white; padding:10px; text-align:center; margin-bottom:20px; }
-  #liveStreamBar a { color:white; text-decoration:underline; margin-left:10px; }
-  #livePlayerContainer { text-align:center; margin-bottom:20px; }
-  #addLiveForm, #authForm { margin-bottom:20px; }
-  #addLiveForm input, #authForm input { margin:0 5px; padding:5px; }
-  #addLiveForm button, #authForm button { padding:5px 10px; }
+  #headerBar { background:#007BFF; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px; position:relative; }
+  #headerBar button { padding:3px 8px; }
+  #livePlayerContainer, #videosContainer { text-align:center; margin:20px 0; }
+  #addLiveForm, #authForm, #aboutBox, #addVideoForm { margin-bottom:20px; }
+  #addLiveForm input, #authForm input, #addVideoForm input { margin:0 5px; padding:5px; }
+  #addLiveForm button, #authForm button, #addVideoForm button { padding:5px 10px; }
+  #aboutBox { display:none; background:#fff; border:1px solid #ccc; padding:10px; margin-top:10px; }
+  .videoCard { border:1px solid #ccc; background:#fff; padding:10px; margin:10px auto; max-width:600px; }
+  .videoCard button { margin-left:5px; }
 </style>
 </head>
 <body>
 
-<h2>پنل پخش زنده IRInews</h2>
+<h2>پنل پخش زنده و ویدئوهای خبری IRInews</h2>
 
 <!-- فرم ورود و ثبت‌نام -->
 <div id="authForm">
@@ -29,16 +32,26 @@
   <p id="authStatus"></p>
 </div>
 
-<!-- نوار پخش زنده -->
-<div id="liveStreamBar" style="display:none;">
-  <span id="liveTitle">پخش زنده فعالی وجود ندارد</span>
-  <a id="liveLink" href="#" target="_blank"></a>
+<!-- نوار بالای سایت -->
+<div id="headerBar">
+  <div id="siteName" style="font-size:20px; font-weight:bold;">ایران نیوز</div>
+  <div id="welcomeMessage" style="font-size:16px; font-weight:bold;"></div>
+  <div id="flag" style="font-size:24px;">🇮🇷</div>
+  <button onclick="toggleAbout()" style="position:absolute; right:120px;">درباره ما</button>
 </div>
 
-<!-- پلیر داخلی -->
+<!-- پنجره درباره ما -->
+<div id="aboutBox">
+  <h3>درباره ما</h3>
+  <p>سلام! به سایت ایران نیوز خوش اومدی.</p>
+  <p>لینک کانال ما برای دیدن اخبار دقیق و بروز در تلگرام و ایتا: <strong>@IRInews_com</strong></p>
+  <p>ما رو دنبال کن!</p>
+</div>
+
+<!-- پلیر پخش زنده -->
 <div id="livePlayerContainer"></div>
 
-<!-- فرم افزودن پخش زنده -->
+<!-- فرم افزودن پخش زنده (فقط ادمین) -->
 <div id="addLiveForm" style="display:none;">
   <input type="text" id="liveTitleInput" placeholder="عنوان پخش زنده">
   <input type="text" id="liveUrlInput" placeholder="لینک پخش زنده (telewebion یا khamenei)">
@@ -46,27 +59,65 @@
   <button onclick="addLiveStream()">افزودن پخش زنده</button>
 </div>
 
+<!-- فرم افزودن ویدئو خبری (فقط ادمین) -->
+<div id="addVideoForm" style="display:none;">
+  <input type="text" id="videoTitleInput" placeholder="عنوان ویدئو">
+  <input type="text" id="videoUrlInput" placeholder="لینک ویدئو">
+  <button onclick="addVideo()">افزودن ویدئو</button>
+</div>
+
+<!-- بخش نمایش ویدئوها -->
+<div id="videosContainer"></div>
+
 <script>
   const supabaseUrl = "https://kvetxiekvsohmsoubclo.supabase.co";
   const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXR4aWVzdm9pcyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzY1MTE3NzM1LCJleHAiOjIwODA2OTM3MzV9.aaKsNfP3jIgsZSlEivVAynIVEuQCceerfmkhzkthfoc";
   const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
   let currentUser = null;
+  let currentRole = "user";
 
-  // بررسی وضعیت کاربر
+  // پیام خوش آمد رندوم
+  function showWelcomeMessage() {
+    const colors = ["green", "red"];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const messages = ["خوش آمدید!", "به سایت ایران نیوز خوش آمدید!"];
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    const welcomeDiv = document.getElementById("welcomeMessage");
+    welcomeDiv.innerText = randomMessage;
+    welcomeDiv.style.color = randomColor;
+  }
+
+  showWelcomeMessage();
+
   async function checkUser() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     currentUser = user;
+
     if(user){
+      const { data: profile } = await supabaseClient
+        .from("IRIusers")
+        .select("role")
+        .eq("email", user.email)
+        .single();
+      currentRole = profile?.role || "user";
+
       document.getElementById("authStatus").innerText = "وارد شدید: " + user.email;
-      document.getElementById("liveStreamBar").style.display = "block";
-      document.getElementById("addLiveForm").style.display = "block"; // اگر ادمین هست
+
+      // نمایش فرم ادمین‌ها
+      document.getElementById("headerBar").style.display = "flex";
+      document.getElementById("addLiveForm").style.display = (currentRole==="admin") ? "block" : "none";
+      document.getElementById("addVideoForm").style.display = (currentRole==="admin") ? "block" : "none";
+
       loadLiveStream();
+      loadVideos();
     } else {
       document.getElementById("authStatus").innerText = "وارد نشده‌اید";
-      document.getElementById("liveStreamBar").style.display = "none";
+      document.getElementById("headerBar").style.display = "none";
       document.getElementById("livePlayerContainer").innerHTML = "<p>لطفاً وارد شوید تا پخش زنده را مشاهده کنید</p>";
       document.getElementById("addLiveForm").style.display = "none";
+      document.getElementById("addVideoForm").style.display = "none";
+      document.getElementById("videosContainer").innerHTML = "<p>ویدئویی موجود نیست</p>";
     }
   }
 
@@ -98,18 +149,22 @@
     checkUser();
   }
 
-  // افزودن پخش زنده جدید
+  // نمایش/مخفی کردن درباره ما
+  function toggleAbout(){
+    const box = document.getElementById("aboutBox");
+    if(box.style.display === "none") box.style.display = "block";
+    else box.style.display = "none";
+  }
+
+  // اضافه کردن پخش زنده
   async function addLiveStream() {
-    if(!currentUser){ alert("ابتدا وارد شوید"); return; }
+    if(!currentUser || currentRole!=="admin"){ alert("تنها ادمین‌ها می‌توانند پخش زنده اضافه کنند"); return; }
 
     const title = document.getElementById("liveTitleInput").value;
     const url = document.getElementById("liveUrlInput").value;
     const end_time = document.getElementById("liveEndTimeInput").value;
 
-    if(!title || !url || !end_time){
-      alert("عنوان، لینک و زمان پایان الزامی است");
-      return;
-    }
+    if(!title || !url || !end_time){ alert("عنوان، لینک و زمان پایان الزامی است"); return; }
 
     const { data, error } = await supabaseClient
       .from("IRIlive_stream")
@@ -125,7 +180,7 @@
     }
   }
 
-  // بارگذاری آخرین پخش زنده
+  // بارگذاری پخش زنده
   async function loadLiveStream() {
     if(!currentUser) return;
 
@@ -137,15 +192,10 @@
       .limit(1);
 
     const container = document.getElementById("livePlayerContainer");
-    const titleSpan = document.getElementById("liveTitle");
-    const linkA = document.getElementById("liveLink");
-
     container.innerHTML = "";
 
     if(data && data.length > 0){
       const live = data[0];
-      titleSpan.innerText = live.title;
-
       const iframe = document.createElement("iframe");
       iframe.src = live.url;
       iframe.width = "800";
@@ -153,18 +203,76 @@
       iframe.allow = "autoplay; fullscreen";
       iframe.frameBorder = "0";
       container.appendChild(iframe);
-
-      linkA.href = live.url;
-      linkA.innerText = "مشاهده پخش زنده در صفحه اصلی";
     } else {
-      titleSpan.innerText = "پخش زنده فعالی وجود ندارد";
-      linkA.innerText = "";
-      linkA.href = "#";
       container.innerHTML = "<p>پخش زنده‌ای موجود نیست</p>";
     }
   }
 
-  // انتقال پخش زنده به آرشیو بعد از پایان
+  // افزودن ویدئو
+  async function addVideo() {
+    if(!currentUser || currentRole!=="admin"){ alert("تنها ادمین‌ها می‌توانند ویدئو اضافه کنند"); return; }
+
+    const title = document.getElementById("videoTitleInput").value;
+    const url = document.getElementById("videoUrlInput").value;
+
+    if(!title || !url){ alert("عنوان و لینک ویدئو الزامی است"); return; }
+
+    const { data, error } = await supabaseClient
+      .from("IRInews_videos")
+      .insert([{ title, url, uploaded_by: currentUser.email, created_at: new Date() }]);
+
+    if(error){ console.log(error); alert("خطا در افزودن ویدئو"); }
+    else {
+      alert("ویدئو اضافه شد!");
+      document.getElementById("videoTitleInput").value = "";
+      document.getElementById("videoUrlInput").value = "";
+      loadVideos();
+    }
+  }
+
+  // بارگذاری ویدئوها
+  async function loadVideos() {
+    const { data } = await supabaseClient
+      .from("IRInews_videos")
+      .select("*")
+      .order("created_at", { ascending:false });
+
+    const container = document.getElementById("videosContainer");
+    container.innerHTML = "";
+
+    if(data && data.length > 0){
+      data.forEach(video => {
+        const div = document.createElement("div");
+        div.className = "videoCard";
+        div.innerHTML = `
+          <h4>${video.title}</h4>
+          <iframe src="${video.url}" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+          ${currentRole==="admin" ? `<br><button onclick="editVideo(${video.id})">ویرایش</button>` : ''}
+        `;
+        container.appendChild(div);
+      });
+    } else {
+      container.innerHTML = "<p>ویدئویی موجود نیست</p>";
+    }
+  }
+
+  // ویرایش ویدئو
+  async function editVideo(id){
+    const newTitle = prompt("عنوان جدید:");
+    const newUrl = prompt("لینک جدید:");
+
+    if(!newTitle || !newUrl) return;
+
+    const { data, error } = await supabaseClient
+      .from("IRInews_videos")
+      .update({ title: newTitle, url: newUrl, updated_at: new Date() })
+      .eq("id", id);
+
+    if(error){ alert("خطا در بروزرسانی ویدئو"); console.log(error); }
+    else { alert("ویدئو بروزرسانی شد"); loadVideos(); }
+  }
+
+  // انتقال پخش زنده به آرشیو
   async function archiveLiveStream(id){
     const { data: live } = await supabaseClient
       .from("IRIlive_stream")
@@ -178,7 +286,6 @@
       .insert([{ title: live.title, url: live.url, created_at: new Date() }]);
 
     await supabaseClient.from("IRIlive_stream").delete().eq("id", id);
-
     loadLiveStream();
   }
 
@@ -199,8 +306,8 @@
     }
   }
 
-  setInterval(checkLiveEnd, 30000); // هر ۳۰ ثانیه بررسی می‌شود
-  checkUser(); // بررسی وضعیت اولیه کاربر
+  setInterval(checkLiveEnd, 30000); // هر ۳۰ ثانیه بررسی
+  checkUser();
 </script>
 
 </body>
