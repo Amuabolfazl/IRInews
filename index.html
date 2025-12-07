@@ -1,40 +1,129 @@
 <!DOCTYPE html>
 <html lang="fa">
 <head>
-  <meta charset="UTF-8">
-  <title>تست اتصال به Supabase</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRInews - پخش زنده و ویدئوها</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { font-family: Tahoma, sans-serif; direction: rtl; margin:0; padding:20px; background:#f5f5f5;}
+  #liveStreamBar { background:#dc3545; color:white; padding:10px; text-align:center; margin-bottom:20px; }
+  #liveStreamBar a { color:white; text-decoration:underline; margin-left:10px; }
+  #livePlayerContainer { text-align:center; margin-bottom:20px; }
+  #addLiveForm { margin-bottom:20px; }
+  #addLiveForm input { margin:0 5px; padding:5px; }
+  #addLiveForm button { padding:5px 10px; }
+</style>
 </head>
+<body>
 
-<body style="font-family: tahoma; direction: rtl; padding: 20px;">
+<h2>پنل پخش زنده IRInews</h2>
 
-  <h2>تست اتصال به Supabase (نسخه سفارشی)</h2>
+<!-- نوار پخش زنده -->
+<div id="liveStreamBar">
+  <span id="liveTitle">پخش زنده فعالی وجود ندارد</span>
+  <a id="liveLink" href="#" target="_blank"></a>
+</div>
 
-  <p id="status">در حال اتصال...</p>
+<!-- پلیر داخلی -->
+<div id="livePlayerContainer"></div>
 
-  <script>
-    const supabaseUrl = "https://kvetxiekvsohmsoubclo.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXR4aWVrdnNvaG1zb3ViY2xvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTc3MzUsImV4cCI6MjA4MDY5MzczNX0.aaKsNfP3jIgsZSlEivVAynIVEuQCceerfmkhzkthfoc";
+<!-- فرم افزودن پخش زنده -->
+<div id="addLiveForm">
+  <input type="text" id="liveTitleInput" placeholder="عنوان پخش زنده">
+  <input type="text" id="liveUrlInput" placeholder="لینک پخش زنده (telewebion یا khamenei)">
+  <button onclick="addLiveStream()">افزودن پخش زنده</button>
+</div>
 
-    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+<script>
+  // اتصال به Supabase
+  const supabaseUrl = "https://kvetxiekvsohmsoubclo.supabase.co";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXR4aWVrdnNvaG1zb3ViY2xvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTc3MzUsImV4cCI6MjA4MDY5MzczNX0.aaKsNfP3jIgsZSlEivVAynIVEuQCceerfmkhzkthfoc";
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-    async function testConnection() {
-      let { data, error } = await supabaseClient
-        .from("IRIusers")    // جدول با نام سفارشی
-        .select("id")
-        .limit(1);
+  // بارگذاری آخرین پخش زنده
+  async function loadLiveStream() {
+    const { data } = await supabaseClient
+      .from("IRIlive_stream")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-      if (error) {
-        document.getElementById("status").innerHTML = "❌ خطا: " + error.message;
-        console.log(error);
-      } else {
-        document.getElementById("status").innerHTML = "✅ اتصال برقرار شد! اطلاعات جدول پیدا شد.";
-        console.log(data);
-      }
+    const container = document.getElementById("livePlayerContainer");
+    const titleSpan = document.getElementById("liveTitle");
+    const linkA = document.getElementById("liveLink");
+
+    container.innerHTML = "";
+
+    if(data && data.length > 0){
+      const live = data[0];
+      titleSpan.innerText = live.title;
+
+      // افزودن پلیر iframe
+      const iframe = document.createElement("iframe");
+      iframe.src = live.url;
+      iframe.width = "800";
+      iframe.height = "450";
+      iframe.allow = "autoplay; fullscreen";
+      iframe.frameBorder = "0";
+      container.appendChild(iframe);
+
+      linkA.href = live.url;
+      linkA.innerText = "مشاهده پخش زنده در صفحه اصلی";
+    } else {
+      titleSpan.innerText = "پخش زنده فعالی وجود ندارد";
+      linkA.innerText = "";
+      linkA.href = "#";
+    }
+  }
+
+  // افزودن پخش زنده جدید
+  async function addLiveStream() {
+    const title = document.getElementById("liveTitleInput").value;
+    const url = document.getElementById("liveUrlInput").value;
+
+    if(!title || !url){
+      alert("عنوان و لینک الزامی است");
+      return;
     }
 
-    testConnection();
-  </script>
+    const { data, error } = await supabaseClient
+      .from("IRIlive_stream")
+      .insert([{ title, url, active:true }]);
+
+    if(error){
+      console.log(error);
+      alert("خطا در افزودن پخش زنده");
+    } else {
+      alert("پخش زنده اضافه شد!");
+      document.getElementById("liveTitleInput").value = "";
+      document.getElementById("liveUrlInput").value = "";
+      loadLiveStream();
+    }
+  }
+
+  // انتقال پخش زنده به آرشیو بعد از پایان
+  async function archiveLiveStream(id){
+    const { data: live } = await supabaseClient
+      .from("IRIlive_stream")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if(!live) return;
+
+    await supabaseClient.from("IRIlive_archive")
+      .insert([{ title: live.title, url: live.url, created_at: new Date() }]);
+
+    await supabaseClient.from("IRIlive_stream").delete().eq("id", id);
+
+    loadLiveStream();
+  }
+
+  // بارگذاری اولیه
+  loadLiveStream();
+</script>
 
 </body>
 </html>
