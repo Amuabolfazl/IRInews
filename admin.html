@@ -1,0 +1,98 @@
+// بارگذاری ویدئوها
+  async function loadVideos() {
+    const { data, error } = await db.from("IRInews_videos").select("*");
+    if(error) { console.error(error); return; }
+    const tbody = document.querySelector("#videosTable tbody");
+    tbody.innerHTML = "";
+    data.forEach(v => {
+      const row = <tr>
+        <td>${v.id}</td>
+        <td>${v.title}</td>
+        <td>${v.category_id || ''}</td>
+        <td>${v.url}</td>
+        <td><button class="delete" onclick="deleteVideo(${v.id})">حذف</button></td>
+      </tr>;
+      tbody.innerHTML += row;
+    });
+  }
+
+  async function deleteVideo(id) {
+    if(!confirm("آیا مطمئن هستید؟")) return;
+    const { error } = await db.from("IRInews_videos").delete().eq("id", id);
+    if(error) { alert("خطا در حذف: "+error.message); return; }
+    loadVideos();
+  }
+
+  function addVideo() {
+    const title = prompt("عنوان ویدئو");
+    const url = prompt("لینک ویدئو");
+    const category_id = prompt("شناسه دسته‌بندی");
+    db.from("IRInews_videos").insert([{ title, url, category_id }]).then(()=>loadVideos());
+  }
+
+  // بارگذاری دسته‌بندی‌ها
+  async function loadCategories() {
+    const { data, error } = await db.from("IRInewscategories").select("*");
+    if(error) { console.error(error); return; }
+    const tbody = document.querySelector("#categoriesTable tbody");
+    tbody.innerHTML = "";
+    data.forEach(c => {
+      const row = <tr>
+        <td>${c.id}</td>
+        <td>${c.name}</td>
+        <td><button class="delete" onclick="deleteCategory(${c.id})">حذف</button></td>
+      </tr>;
+      tbody.innerHTML += row;
+    });
+  }
+
+  async function deleteCategory(id) {
+    if(!confirm("آیا مطمئن هستید؟")) return;
+    const { error } = await db.from("IRInewscategories").delete().eq("id", id);
+    if(error) { alert("خطا در حذف: "+error.message); return; }
+    loadCategories();
+  }
+
+  function addCategory() {
+    const name = prompt("نام دسته‌بندی");
+    db.from("IRInewscategories").insert([{ name }]).then(()=>loadCategories());
+  }
+
+  // بارگذاری سوالات
+  async function loadQuestions() {
+    const { data, error } = await db.from("IRInews_questions").select("*");
+    if(error) { console.error(error); return; }
+    const tbody = document.querySelector("#questionsTable tbody");
+    tbody.innerHTML = "";
+    data.forEach(q => {
+      const row = <tr>
+        <td>${q.id}</td>
+        <td>${q.user_id}</td>
+        <td>${q.question}</td>
+        <td><button class="delete" onclick="deleteQuestion(${q.id})">حذف</button></td>
+      </tr>;
+      tbody.innerHTML += row;
+    });
+  }
+
+  async function deleteQuestion(id) {
+    if(!confirm("آیا مطمئن هستید؟")) return;
+    const { error } = await db.from("IRInews_questions").delete().eq("id", id);
+    if(error) { alert("خطا در حذف: "+error.message); return; }
+    loadQuestions();
+  }
+
+  // Load all
+  async function loadAll() {
+    if(await checkAdmin()){
+      loadUsers();
+      loadVideos();
+      loadCategories();
+      loadQuestions();
+    }
+  }
+
+  loadAll();
+</script>
+</body>
+</html>
