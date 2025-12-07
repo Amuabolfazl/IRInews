@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>ورود / ثبت نام</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body { 
+      font-family: tahoma;
+      direction: rtl;
+      padding: 40px;
+      background: #f8f8f8;
+    }
+    .box {
+      max-width: 350px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #ccc;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover { background: #005fcc; }
+  </style>
+</head>
+
+<body>
+
+<div class="box">
+  <h3>ورود / ثبت نام</h3>
+
+  <input id="username" type="text" placeholder="نام کاربری (اختیاری)">
+  <input id="email" type="email" placeholder="ایمیل (اختیاری)">
+  <input id="password" type="password" placeholder="رمز عبور">
+
+  <button onclick="registerUser()">ثبت نام</button>
+  <button onclick="loginUser()" style="margin-top:10px; background:#28a745;">ورود</button>
+
+  <p id="msg" style="color:red; margin-top:15px;"></p>
+</div>
+
+
+<script>
+  const supabaseUrl = "https://kvetxiekvsohmsoubclo.supabase.co";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2ZXR4aWVrdnNvaG1zb3ViY2xvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTc3MzUsImV4cCI6MjA4MDY5MzczNX0.aaKsNfP3jIgsZSlEivVAynIVEuQCceerfmkhzkthfoc";
+
+  const db = supabase.createClient(supabaseUrl, supabaseKey);
+
+  async function registerUser() {
+    let username = document.getElementById("username").value;
+    let email = document.getElementById("email").value;
+    let password = document.getElementById("password").value;
+
+    if (!password) {
+      document.getElementById("msg").innerText = "رمز عبور الزامی است";
+      return;
+    }
+
+    const { data, error } = await db.from("IRIusers").insert([
+      {
+        username: username || null,
+        email: email || null,
+        password: password
+      }
+    ]);
+
+    if (error) {
+      document.getElementById("msg").innerText = "خطا: " + error.message;
+    } else {
+      document.getElementById("msg").innerText = "ثبت نام موفق!";
+    }
+  }
+
+
+  async function loginUser() {
+    let username = document.getElementById("username").value;
+    let password = document.getElementById("password").value;
+
+    const { data, error } = await db
+      .from("IRIusers")
+      .select("*")
+      .eq("username", username)
+      .eq("password", password)
+      .limit(1);
+
+    if (data && data.length > 0) {
+      document.getElementById("msg").innerText = "ورود موفق!";
+      // بعداً انتقال به پنل مدیریت را می‌سازیم
+    } else {
+      document.getElementById("msg").innerText = "نام کاربری یا رمز اشتباه است";
+    }
+  }
+</script>
+
+</body>
+</html>
